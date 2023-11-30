@@ -1,0 +1,53 @@
+1)
+  a) In 'void remove_next_from_list(list_t *item)'
+    'item->next' used after it is freed
+
+    Posible solution:
+      void remove_next_from_list(list_t *item)
+      {
+        if (item->next) {
+	  list_t* removed_item = item->next;
+	  item->next = item->next->next;
+	  free(removed_item);
+        }
+      }
+
+
+  b) In 'char *item_data(const list_t *list)'
+    returned an address of local variable 'buf'.
+
+    there are possible several solutions:
+    place char buf in the data section(static char buf); pass buf pointer as argument; allocate buf memory in the heap
+
+  c) In 'void insert_next_to_list(list_t *item, int data)'
+      we should to save item->next at start and after insertion use saved item as next field for new item.
+
+      Possible solution:
+      void insert_next_to_list(list_t *item, int data) {
+        list_t* next_item = item->next;
+        (item->next = malloc(sizeof(list_t)))->next = item->next;
+        item->next->data = data;
+        item->next->next = next_item;
+      }
+
+2)
+  To change default behaviour need to add link option:
+    -Wl,-Bstatic -l{libname}
+
+3) see 'mask_messages.c'
+
+4) To implement breakpoin feature Linux use 'ptrace' system call.
+  a) 'ptrace' used to read data from proccess memory at desired address
+  b)  programmer must save this data
+  c)  next 'ptrace'  replace data in the addrress with instruction 0xcc(int 3)
+  d)  next call 'wait' system call to get the a signal, when debuggee proccess reaches 0xcc
+  e)  once we reaches the breakpoint we want to restore the code we broke with our 0xcc to it's original state
+
+5) No, it's not affect any other application which used same shared library. If we want to modify shared library code by setting
+'int 3' instruction then Linux create a private copy of the code not visible to other proccess.
+
+6)
+If a user process has started an IO operation with a device, and stopped,
+waiting for the end of the operation in the device, then the operation in the device will end during operation some other process in the system.
+A hardware interrupt indicating the completion of the operation will be processed by
+the operating system. Since it takes some time to process the interrupt, the current process on a single-processor system will be suspended. Thus, any process in the system unpredictably affects the performance of other processes regardless of their priorities.
