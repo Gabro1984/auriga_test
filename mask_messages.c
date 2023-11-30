@@ -6,44 +6,45 @@
 #include <string.h>
 
 #define MAX_DATA_SIZE 252
-#define ALIGN_BYTES 4
-#define CRC_INIT 0xFFFFFFFF
-#define CRC_POLYNOM    0xEDB88320 // reverse 0x04C11DB7
+#define ALIGN_BYTES   4
+#define CRC_INIT      0xFFFFFFFF
+#define CRC_POLYNOM   0xEDB88320 // reverse 0x04C11DB7
 
-FILE*   in_file;
-FILE*   out_file;
+FILE* in_file;
+FILE* out_file;
 
-#define LOG( fmt , ... )						\
-    do{									\
-	FILE* f = fopen( "data_out.txt" , "ea" ) ;				\
-	if( !f )							\
-	    break ;							\
-	fprintf(f, fmt" %s %d\n",__VA_ARGS__,__FILE__,__LINE__);	\
-	fclose( f ) ;							\
-    }while( 0 )
+#define LOG(fmt, ...)                                                \
+    do                                                               \
+    {                                                                \
+        FILE* f = fopen("data_out.txt", "ea");                       \
+        if (!f)                                                      \
+            break;                                                   \
+        fprintf(f, fmt " %s %d\n", __VA_ARGS__, __FILE__, __LINE__); \
+        fclose(f);                                                   \
+    } while (0)
 
 typedef struct Message
 {
     uint8_t  type;
     uint8_t  data_len;
-    uint8_t   data[MAX_DATA_SIZE];
+    uint8_t  data[MAX_DATA_SIZE];
     uint32_t crc32;
     uint32_t mask;
 } Message;
 
 static int parse_line(const char* input, Message* msg)
 {
-    char*  pos                   = strstr(input, "mess=");
+    char* pos = strstr(input, "mess=");
 
     if (!pos)
     {
-	LOG("Error: \"%s\" couldn't be found \n", "mess=");
+        LOG("Error: \"%s\" couldn't be found \n", "mess=");
         return EXIT_FAILURE;
     }
     pos += strlen("mess=");
     msg->type     = *pos++;
     msg->data_len = *pos++;
-    strncpy(msg->data,  pos, msg->data_len);
+    strncpy(msg->data, pos, msg->data_len);
     pos += msg->data_len;
     msg->crc32 = *((uint32_t*)pos);
     pos += sizeof(uint32_t);
@@ -52,7 +53,7 @@ static int parse_line(const char* input, Message* msg)
 
     if (!pos)
     {
-	LOG("Error: \"%s\" couldn't be found. \n", "mask=");
+        LOG("Error: \"%s\" couldn't be found. \n", "mask=");
         return EXIT_FAILURE;
     }
     pos += strlen("mask=");
@@ -90,30 +91,30 @@ static uint32_t out_data_len(const uint32_t in_data_len)
 
 static void mask_data(unsigned char* out_data, const Message* in_msg)
 {
-    uint8_t byte_num, shift;
+    uint8_t  byte_num, shift;
     uint16_t i = 0;
 
     while (i < in_msg->data_len)
     {
-	if (i % 2 == 0) // even
-	{
-	    shift = (i % 4) * 8;
-	    out_data[i] = in_msg->data[i] & (uint8_t)(in_msg->mask >> shift);
-	}
-	else
-	{
-	    out_data[i] = in_msg->data[i];
-	}
-	++i;
+        if (i % 2 == 0) // even
+        {
+            shift       = (i % 4) * 8;
+            out_data[i] = in_msg->data[i] & (uint8_t)(in_msg->mask >> shift);
+        }
+        else
+        {
+            out_data[i] = in_msg->data[i];
+        }
+        ++i;
     }
 }
 
 static void write_out(const Message* msg)
 {
     uint16_t out_data_size = out_data_len(msg->data_len);
-    uint8_t out_data[out_data_size];
-    uint32_t out_len =
-      sizeof(msg->type) + 2*sizeof(msg->data_len) + 2*sizeof(msg->crc32) + msg->data_len + out_data_size;
+    uint8_t  out_data[out_data_size];
+    uint32_t out_len = sizeof(msg->type) + 2 * sizeof(msg->data_len) + 2 * sizeof(msg->crc32)
+                       + msg->data_len + out_data_size;
     uint8_t* buf = malloc(out_len);
     uint8_t* pos = buf;
 
@@ -130,7 +131,7 @@ static void write_out(const Message* msg)
     pos += out_data_size;
     *(uint32_t*)pos = crc32;
 
-    fwrite(buf, out_len,1,out_file);
+    fwrite(buf, out_len, 1, out_file);
     free(buf);
 }
 
@@ -149,8 +150,8 @@ int main(void)
     in_file = fopen("data_in.txt", "re");
     if (in_file == NULL)
     {
-	LOG("%s", "Error: can't open input file");
-	exit(EXIT_FAILURE);
+        LOG("%s", "Error: can't open input file");
+        exit(EXIT_FAILURE);
     }
 
     while (getline(&line, &len, in_file) != -1)
@@ -159,11 +160,12 @@ int main(void)
 
         if (crc32b_calc(msg.data, msg.data_len) != msg.crc32)
         {
-	    LOG("Error: wrong crc32 0x%x != 0x%x  \n",
-		msg.crc32, crc32b_calc(msg.data, msg.data_len));
+            LOG("Error: wrong crc32 0x%x != 0x%x  \n",
+                msg.crc32,
+                crc32b_calc(msg.data, msg.data_len));
         }
 
-	write_out(&msg);
+        write_out(&msg);
     }
 
     fclose(in_file);
